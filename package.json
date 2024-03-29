@@ -1,7 +1,7 @@
 {
-  "name": "keycloak-connect",
-  "version": "17.0.0-dev",
-  "description": "Keycloak Connect Middleware",
+  "name": "@itstor/keycloak-connect",
+  "version": "24.0.0",
+  "description": "Extended Keycloak Connect Middleware to Support Organization Role",
   "homepage": "http://keycloak.org",
   "main": "keycloak.js",
   "scripts": {
