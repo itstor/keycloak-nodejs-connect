@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-'use strict'
+"use strict";
 
 /**
  * Construct a token.
@@ -27,21 +27,21 @@
  * @param {String} token The JSON Web Token formatted token string.
  * @param {String} clientId Optional clientId if this is an `access_token`.
  */
-function Token (token, clientId) {
-  this.token = token
-  this.clientId = clientId
+function Token(token, clientId) {
+  this.token = token;
+  this.clientId = clientId;
 
   if (token) {
     try {
-      const parts = token.split('.')
-      this.header = JSON.parse(Buffer.from(parts[0], 'base64').toString())
-      this.content = JSON.parse(Buffer.from(parts[1], 'base64').toString())
-      this.signature = Buffer.from(parts[2], 'base64')
-      this.signed = parts[0] + '.' + parts[1]
+      const parts = token.split(".");
+      this.header = JSON.parse(Buffer.from(parts[0], "base64").toString());
+      this.content = JSON.parse(Buffer.from(parts[1], "base64").toString());
+      this.signature = Buffer.from(parts[2], "base64");
+      this.signed = parts[0] + "." + parts[1];
     } catch (err) {
       this.content = {
-        exp: 0
-      }
+        exp: 0,
+      };
     }
   }
 }
@@ -51,9 +51,9 @@ function Token (token, clientId) {
  *
  * @return {boolean} `true` if it is expired, otherwise `false`.
  */
-Token.prototype.isExpired = function isExpired () {
-  return ((this.content.exp * 1000) < Date.now())
-}
+Token.prototype.isExpired = function isExpired() {
+  return this.content.exp * 1000 < Date.now();
+};
 
 /**
  * Determine if this token has an associated role.
@@ -76,22 +76,26 @@ Token.prototype.isExpired = function isExpired () {
  *
  * @return {boolean} `true` if this token has the specified role, otherwise `false`.
  */
-Token.prototype.hasRole = function hasRole (name) {
+Token.prototype.hasRole = function hasRole(name) {
   if (!this.clientId) {
-    return false
+    return false;
   }
 
-  const parts = name.split(':')
+  const parts = name.split(":");
   if (parts.length === 1) {
-    return this.hasApplicationRole(this.clientId, parts[0])
+    return this.hasApplicationRole(this.clientId, parts[0]);
   }
 
-  if (parts[0] === 'realm') {
-    return this.hasRealmRole(parts[1])
+  if (parts[0] === "realm") {
+    return this.hasRealmRole(parts[1]);
   }
 
-  return this.hasApplicationRole(parts[0], parts[1])
-}
+  if (parts[0] === "org") {
+    return this.hasOrganizationRole(parts[1]);
+  }
+
+  return this.hasApplicationRole(parts[0], parts[1]);
+};
 
 /**
  * Determine if this token has an associated specific application role.
@@ -104,19 +108,22 @@ Token.prototype.hasRole = function hasRole (name) {
  *
  * @return {boolean} `true` if this token has the specified role, otherwise `false`.
  */
-Token.prototype.hasApplicationRole = function hasApplicationRole (appName, roleName) {
+Token.prototype.hasApplicationRole = function hasApplicationRole(
+  appName,
+  roleName
+) {
   if (!this.content.resource_access) {
-    return false
+    return false;
   }
 
-  const appRoles = this.content.resource_access[appName]
+  const appRoles = this.content.resource_access[appName];
 
   if (!appRoles) {
-    return false
+    return false;
   }
 
-  return (appRoles.roles.indexOf(roleName) >= 0)
-}
+  return appRoles.roles.indexOf(roleName) >= 0;
+};
 
 /**
  * Determine if this token has an associated specific realm-level role.
@@ -129,16 +136,41 @@ Token.prototype.hasApplicationRole = function hasApplicationRole (appName, roleN
  *
  * @return {boolean} `true` if this token has the specified role, otherwise `false`.
  */
-Token.prototype.hasRealmRole = function hasRealmRole (roleName) {
+Token.prototype.hasRealmRole = function hasRealmRole(roleName) {
   // Make sure we have these properties before we check for a certain realm level role!
   // Without this we attempt to access an undefined property on token
   // for a user with no realm level roles.
   if (!this.content.realm_access || !this.content.realm_access.roles) {
-    return false
+    return false;
   }
 
-  return (this.content.realm_access.roles.indexOf(roleName) >= 0)
-}
+  return this.content.realm_access.roles.indexOf(roleName) >= 0;
+};
+
+/**
+ * Determine if this token has an associated specific org-level role.
+ *
+ * If there is no active organization, this method will return `false`.
+ * The active organization is set by the `active_organization` field in the token.
+ * You must config this in the client scope mapping.
+ *
+ * @param {String} roleName The name of the role within that organization to test.
+ * @return {boolean} `true` if this token has the specified role, otherwise `false`.
+ */
+
+Token.prototype.hasOrganizationRole = function hasOrganizationRole(roleName) {
+  if (!this.content.resource_access) {
+    return false;
+  }
+
+  const orgRoles = this.content.active_organization["role"];
+
+  if (!orgRoles) {
+    return false;
+  }
+
+  return orgRoles.roles.indexOf(roleName) >= 0;
+};
 
 /**
  * Determine if this token has an associated role.
@@ -161,29 +193,31 @@ Token.prototype.hasRealmRole = function hasRealmRole (roleName) {
  *
  * @return {boolean} `true` if this token has the specified role, otherwise `false`.
  */
-Token.prototype.hasPermission = function hasPermission (resource, scope) {
-  const permissions = this.content.authorization ? this.content.authorization.permissions : undefined
+Token.prototype.hasPermission = function hasPermission(resource, scope) {
+  const permissions = this.content.authorization
+    ? this.content.authorization.permissions
+    : undefined;
 
   if (!permissions) {
-    return false
+    return false;
   }
 
   for (let i = 0; i < permissions.length; i++) {
-    const permission = permissions[i]
+    const permission = permissions[i];
 
     if (permission.rsid === resource || permission.rsname === resource) {
       if (scope) {
         if (permission.scopes && permission.scopes.length > 0) {
           if (!permission.scopes.includes(scope)) {
-            return false
+            return false;
           }
         }
       }
-      return true
+      return true;
     }
   }
 
-  return false
-}
+  return false;
+};
 
-module.exports = Token
+module.exports = Token;
